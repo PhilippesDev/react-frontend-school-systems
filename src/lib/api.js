@@ -44,6 +44,7 @@ function unwrapList(data, tableName) {
   if (Array.isArray(data)) return data;
   if (data && Array.isArray(data[tableName])) return data[tableName];
   if (data && Array.isArray(data.items)) return data.items;
+  if (data && Array.isArray(data.value)) return data.value;
   return [];
 }
 

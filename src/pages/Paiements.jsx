@@ -7,6 +7,7 @@ import {
 import { useSchoolData } from '../hooks/useSchoolData';
 import { useAnneeScolaire } from '../context/AnneeScolaireContext';
 import { createOne, updateOne, deleteOne } from '../lib/api';
+import { elevePhotoUrl } from '../lib/elevePhoto';
 
 const MODES_PAIEMENT = ['Espèces', 'Mobile Money', 'Carte bancaire', 'Virement', 'Chèque'];
 
@@ -583,7 +584,7 @@ export default function Paiements() {
                       <tr key={eleve.id} className="group hover:bg-[#16161c] transition-colors">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={eleve.photo || `https://ui-avatars.com/api/?name=${eleve.nom}+${eleve.prenom}&background=1a1a26&color=fff`}
+                            <img src={elevePhotoUrl(eleve.photo) || `https://ui-avatars.com/api/?name=${eleve.nom}+${eleve.prenom}&background=1a1a26&color=fff`}
                               alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-[#222233]"
                               onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${eleve.nom}+${eleve.prenom}&background=1a1a26&color=fff`; }} />
                             <div>
@@ -819,7 +820,7 @@ export default function Paiements() {
         {selectedEleve && (
           <form onSubmit={handlePaiement} className="space-y-4">
             <div className="bg-[#09090e] border border-[#1b1b26] rounded-xl p-4 flex items-center gap-3">
-              <img src={selectedEleve.photo || `https://ui-avatars.com/api/?name=${selectedEleve.nom}+${selectedEleve.prenom}&background=1a1a26&color=fff`}
+              <img src={elevePhotoUrl(selectedEleve.photo) || `https://ui-avatars.com/api/?name=${selectedEleve.nom}+${selectedEleve.prenom}&background=1a1a26&color=fff`}
                 alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-[#222233]"
                 onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${selectedEleve.nom}+${selectedEleve.prenom}&background=1a1a26&color=fff`; }} />
               <div>

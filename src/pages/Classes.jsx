@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useSchoolData } from '../hooks/useSchoolData';
 import { createOne, updateOne, deleteOne } from '../lib/api';
+import { elevePhotoUrl } from '../lib/elevePhoto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DONNÉES & CONFIGURATION
@@ -739,7 +740,7 @@ export default function Classes() {
                         <tr key={eleve.id} className="hover:bg-[#16161c] transition-colors">
                           <td className="px-4 py-3">
                             <img
-                              src={eleve.photo || `https://ui-avatars.com/api/?name=${eleve.nom}+${eleve.prenom}&background=1a1a26&color=fff`}
+                              src={elevePhotoUrl(eleve.photo) || `https://ui-avatars.com/api/?name=${eleve.nom}+${eleve.prenom}&background=1a1a26&color=fff`}
                               alt=""
                               className="w-8 h-8 rounded-full object-cover ring-2 ring-[#222233]"
                               onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${eleve.nom}+${eleve.prenom}&background=1a1a26&color=fff`; }}

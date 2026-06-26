@@ -21,6 +21,7 @@ import {
   getActiveAnnee, buildEleveResults, formatPourcentage,
 } from '../lib/cotationsUtils';
 import { presenceToRecords, mapPaiementForUi } from '../lib/schoolJoins';
+import { elevePhotoUrl } from '../lib/elevePhoto';
 import { buildYearGrid, GRID_COLOR, getPresenceStats } from '../lib/presenceData';
 
 const AVT_BG   = ['#132c3f','#2e163d','#1e1b4b','#3c2a16','#103024','#3b1820'];
@@ -36,8 +37,9 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-
 const Avatar = ({ eleve, size = 'md' }) => {
   const [err, setErr] = useState(false);
   const cls = { sm: 'w-8 h-8 text-[10px]', md: 'w-12 h-12 text-sm', lg: 'w-20 h-20 text-xl' }[size];
-  if (!err && eleve?.photo) {
-    return <img src={eleve.photo} alt="" onError={() => setErr(true)}
+  const photoUrl = elevePhotoUrl(eleve?.photo);
+  if (!err && photoUrl) {
+    return <img src={photoUrl} alt="" onError={() => setErr(true)}
       className={`${cls} rounded-full object-cover ring-2 ring-[#222233] shrink-0`} />;
   }
   return (

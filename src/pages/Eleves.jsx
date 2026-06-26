@@ -13,9 +13,10 @@ import {
   FileText, FileSpreadsheet, Printer, Check, Upload,
 } from 'lucide-react';
 import { useSchoolData } from '../hooks/useSchoolData';
-import { createOne, updateOne, deleteOne } from '../lib/api';
-import { createEleve, updateEleve } from '../lib/elevesService';
-import { computePaymentProgress, getPaymentInfo } from '../lib/schoolJoins';
+import { createOne, updateOne, deleteOne, fetchAll } from '../lib/api';
+import { createEleve, updateEleve } from '../lib/eleveApi';
+import { elevePhotoUrl } from '../lib/elevePhoto';
+import { computePaymentProgress, getPaymentInfo, getInscriptionForEleve } from '../lib/schoolJoins';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONSTANTS
@@ -40,8 +41,10 @@ const SORT_OPTIONS = [
 const fullName = (e) => `${e.nom} ${e.postnom} ${e.prenom}`;
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
+  if (!dateStr || dateStr === '—') return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('fr-FR', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
 };
@@ -55,7 +58,7 @@ const getAge = (dateNaissance) => {
   return age;
 };
 
-const getDateInscription = (eleve) => eleve.dateInscription ?? '—';
+const getDateInscription = (eleve) => eleve.dateInscription ?? null;
 
 // Avatar fallback
 const getInitials = (e) => `${e.nom[0]}${e.prenom[0]}`.toUpperCase();
@@ -86,10 +89,12 @@ const Avatar = ({ eleve, size = 'md' }) => {
     lg: 'w-16 h-16 text-xl',
   }[size];
 
-  if (!err && eleve.photo) {
+  const photoUrl = elevePhotoUrl(eleve.photo);
+
+  if (!err && photoUrl) {
     return (
       <img
-        src={eleve.photo}
+        src={photoUrl}
         alt={fullName(eleve)}
         onError={() => setErr(true)}
         className={`${cls} rounded-full object-cover ring-2 ring-[#222233] shrink-0`}
@@ -335,14 +340,16 @@ const ReInscriptionModal = ({ initialEleve, allStudents, anneesOptions, classesO
 
   const handlePick = (e) => { setEleve(e); setStep(2); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs = {};
     if (!form.annee)  errs.annee  = 'Choisissez une année scolaire.';
     if (!form.classe) errs.classe = 'Choisissez une classe.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
-    onSave({ ...eleve, classe: form.classe });
-    onClose();
+    const saved = await onSave({ ...eleve, classe: form.classe });
+    if (saved) {
+      onClose();
+    }
   };
 
   return (
@@ -488,6 +495,7 @@ const ReInscriptionModal = ({ initialEleve, allStudents, anneesOptions, classesO
 const EMPTY_FORM = {
   nom:'', postnom:'', prenom:'', sexe:'M',
   dateNaissance:'', lieuNaissance:'',
+  adresse:'', numPere:'', numMere:'',
   nomsPere:'', numPere:'',
   nomsMere:'', numMere:'',
   classe:'', option:'', photo:'', imageFile: null,
@@ -501,7 +509,7 @@ const STEPS = [
 
 const InscriptionModal = ({ eleve, classesOptions, optionsOptions, onClose, onSave }) => {
   const isEdit = !!eleve;
-  const [form, setForm]   = useState(isEdit ? { ...eleve, imageFile: null } : { ...EMPTY_FORM });
+  const [form, setForm]   = useState(isEdit ? { ...eleve } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
   const [step, setStep]   = useState(1);
 
@@ -532,10 +540,12 @@ const InscriptionModal = ({ eleve, classesOptions, optionsOptions, onClose, onSa
     setStep((s) => s + 1);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateStep(3)) return;
-    onSave({ ...form, id: isEdit ? form.id : Date.now() });
-    onClose();
+    const saved = await onSave({ ...form, id: isEdit ? form.id : Date.now() });
+    if (saved) {
+      onClose();
+    }
   };
 
   // Couleurs thématiques selon mode
@@ -618,7 +628,7 @@ const InscriptionModal = ({ eleve, classesOptions, optionsOptions, onClose, onSa
               <div className="flex items-center gap-4 p-4 bg-[#09090e] border border-[#1b1b26] rounded-2xl">
                 <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#2d2d3f] flex items-center justify-center shrink-0 overflow-hidden">
                   {form.photo
-                    ? <img src={form.photo} alt="" className="w-full h-full object-cover" />
+                    ? <img src={elevePhotoUrl(form.photo)} alt="" className="w-full h-full object-cover" />
                     : <User size={22} className="text-[#2d2d3f]" />}
                 </div>
                 <div>
@@ -629,10 +639,11 @@ const InscriptionModal = ({ eleve, classesOptions, optionsOptions, onClose, onSa
                     Choisir une photo
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) {
-                        set('photo')(URL.createObjectURL(f));
-                        set('imageFile')(f);
-                      }
+                      if (f) setForm((prev) => ({
+                        ...prev,
+                        photo: URL.createObjectURL(f),
+                        imageFile: f,
+                      }));
                     }} />
                   </label>
                 </div>
@@ -658,6 +669,11 @@ const InscriptionModal = ({ eleve, classesOptions, optionsOptions, onClose, onSa
                   <TextInput value={form.lieuNaissance} onChange={set('lieuNaissance')} placeholder="Kinshasa" />
                 </FormField>
               </div>
+
+              <FormField label="Adresse" required error={errors.adresse}>
+                <TextInput value={form.adresse} onChange={set('adresse')} placeholder="Quartier, avenue, ville..." />
+              </FormField>
+              
 
               <FormField label="Sexe" required>
                 <div className="flex gap-3">
@@ -859,12 +875,17 @@ export default function Eleves() {
     paiements,
   } = useSchoolData();
 
+  const selectedAnnee = useMemo(
+    () => annees.find((a) => a.id === anneeId),
+    [annees, anneeId],
+  );
+
   const CLASSES = useMemo(() => classesList.map((c) => c.nom), [classesList]);
   const OPTIONS = useMemo(() => optionsList.map((o) => o.designation), [optionsList]);
   const ANNEES = useMemo(() => annees.map((a) => a.designation), [annees]);
 
   const paymentFor = (id) => getPaymentInfo(
-    computePaymentProgress(id, inscriptions, fraisConcerner, paiements, anneeId),
+    computePaymentProgress(id, inscriptions, fraisConcerner, paiements, anneeId, annees, classesList),
   );
 
   // ── Filtres ──
@@ -876,6 +897,10 @@ export default function Eleves() {
   const [sortBy,         setSortBy]         = useState('nom_asc');
   const [showFilters,    setShowFilters]    = useState(false);
   const [showExport,     setShowExport]     = useState(false);
+  const [onlyEnrolledYear, setOnlyEnrolledYear] = useState(true);
+
+  // Erreur API globale (affichée dans un bandeau)
+  const [apiError, setApiError] = useState(null);
 
   // ── Modaux ──
   const [viewModal,    setViewModal]    = useState(null);
@@ -883,9 +908,16 @@ export default function Eleves() {
   const [deleteModal,  setDeleteModal]  = useState(null);
   const [reinscModal,  setReinscModal]  = useState(null); // null | 'global' | élève
 
+  const tableStudents = useMemo(() => {
+    if (!onlyEnrolledYear) return students;
+    return students.filter((e) =>
+      getInscriptionForEleve(inscriptions, e.id, anneeId, annees),
+    );
+  }, [students, onlyEnrolledYear, inscriptions, anneeId, annees]);
+
   // ── Liste filtrée & triée ──
   const filtered = useMemo(() => {
-    let list = [...students];
+    let list = [...tableStudents];
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -915,7 +947,7 @@ export default function Eleves() {
     });
 
     return list;
-  }, [students, search, filterClasse, filterOption, filterGenre, filterPaiement, sortBy, paymentFor]);
+  }, [tableStudents, search, filterClasse, filterOption, filterGenre, filterPaiement, sortBy, paymentFor]);
 
   // ── CRUD ──
   const handleSave = async (data) => {
@@ -932,27 +964,34 @@ export default function Eleves() {
       nomsMere: eleveFields.nomsMere,
       numPere: eleveFields.numPere ?? '',
       numMere: eleveFields.numMere ?? '',
-      photo: eleveFields.photo ?? '',
-      imageFile: eleveFields.imageFile ?? null,
+      imageFile: eleveFields.imageFile instanceof File ? eleveFields.imageFile : undefined,
     };
     try {
       if (data.id && students.some((e) => e.id === data.id)) {
         await updateEleve(data.id, body);
       } else {
         const created = await createEleve(body);
+        //listes completes des éléves en json
+        let eleves = await fetchAll('eleve');
+        let taille_eleves = eleves.length;
+        alert("Id de l'élève inscrit : " + (eleves[taille_eleves - 1].id));
         const cls = classesList.find((c) => c.nom === classe);
         if (cls && anneeId) {
           await createOne('inscription', {
-            dateInscription: new Date().toISOString().slice(0, 10),
-            eleveId: created.id,
+           // dateInscription: new Date().toISOString().slice(0, 10),
+            eleveId: eleves[taille_eleves - 1].id,
             classeId: cls.id,
             anneeScolaireId: anneeId,
           });
         }
       }
       await reload();
+      setApiError(null);
+      return true;
     } catch (err) {
       console.error(err);
+      setApiError(err?.message || (err && String(err)) || 'Erreur inconnue');
+      return false;
     }
   };
 
@@ -962,6 +1001,7 @@ export default function Eleves() {
       await reload();
     } catch (err) {
       console.error(err);
+      setApiError(err?.message || (err && String(err)) || 'Erreur suppression');
     }
     setDeleteModal(null);
   };
@@ -970,22 +1010,21 @@ export default function Eleves() {
     const cls = classesList.find((c) => c.nom === data.classe);
     if (!cls || !anneeId) return;
     try {
-      const existing = inscriptions.find(
-        (i) => i.eleveId === data.id && i.anneeScolaireId === anneeId,
-      );
-      if (existing) {
+      const existing = getInscriptionForEleve(inscriptions, data.id, anneeId, annees);
+      if (existing?.id) {
         await updateOne('inscription', existing.id, { classeId: cls.id });
       } else {
         await createOne('inscription', {
-          dateInscription: new Date().toISOString().slice(0, 10),
           eleveId: data.id,
           classeId: cls.id,
           anneeScolaireId: anneeId,
         });
       }
       await reload();
+      setApiError(null);
     } catch (err) {
       console.error(err);
+      setApiError(err?.message || (err && String(err)) || 'Erreur réinscription');
     }
   };
 
@@ -1017,15 +1056,37 @@ export default function Eleves() {
       {/* ═══════════════════ HEADER ═══════════════════ */}
       <div className="flex flex-col gap-6 mb-10">
 
+        {apiError && (
+          <div className="rounded-2xl bg-[#5b2123] border border-[#7f1d1d] px-5 py-4 text-sm text-[#fee2e2]">
+            <strong>Erreur :</strong> {apiError}
+          </div>
+        )}
+
         {/* Titre + BOUTONS SPÉCIAUX */}
         <div className="flex items-start justify-between gap-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Élèves</h1>
-            <p className="text-[#55556d] text-sm mt-1.5">
-              <span className="text-white font-semibold">{students.length}</span> élève{students.length > 1 ? 's' : ''} inscrits
-              {filtered.length !== students.length && (
-                <> · <span className="text-[#4ade80] font-semibold">{filtered.length}</span> affiché{filtered.length > 1 ? 's' : ''}</>
-              )}
+            <p className="text-[#55556d] text-sm mt-1.5 flex items-center gap-2 flex-wrap">
+              <span>
+                <span className="text-white font-semibold">{tableStudents.length}</span>
+                {' '}élève{tableStudents.length > 1 ? 's' : ''}
+                {onlyEnrolledYear && selectedAnnee ? ` · ${selectedAnnee.label}` : ''}
+                {filtered.length !== tableStudents.length && (
+                  <> · <span className="text-[#4ade80] font-semibold">{filtered.length}</span> affiché{filtered.length > 1 ? 's' : ''}</>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => setOnlyEnrolledYear((v) => !v)}
+                title={onlyEnrolledYear ? 'Afficher tous les élèves de la base' : `N\'afficher que les inscrits (${selectedAnnee?.label ?? 'année sélectionnée'})`}
+                className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                  onlyEnrolledYear
+                    ? 'border-[#1b3d2b]/60 text-[#4ade80]/80 bg-[#12241c]/30'
+                    : 'border-[#222233] text-[#55556d] hover:text-[#a0a0b0]'
+                }`}
+              >
+                {onlyEnrolledYear ? 'Inscrits année' : 'Tous les élèves'}
+              </button>
             </p>
           </div>
 
@@ -1201,7 +1262,11 @@ export default function Eleves() {
               <Users size={26} className="text-[#2d2d3f]" />
             </div>
             <p className="text-[#44445a] font-semibold">Aucun élève trouvé</p>
-            <p className="text-[#2d2d3f] text-sm mt-1">Modifiez vos critères de recherche ou de filtrage</p>
+            <p className="text-[#2d2d3f] text-sm mt-1">
+              {onlyEnrolledYear && selectedAnnee
+                ? `Aucun élève inscrit pour ${selectedAnnee.label}`
+                : 'Modifiez vos critères de recherche ou de filtrage'}
+            </p>
           </div>
         ) : (
           filtered.map((eleve) => {
@@ -1297,11 +1362,11 @@ export default function Eleves() {
           <div className="flex items-center gap-4 text-[10px] text-[#44445a]">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#4ade80]" />
-              {students.filter((e) => paymentFor(e.id).label === 'Soldé').length} soldés
+              {filtered.filter((e) => paymentFor(e.id).label === 'Soldé').length} soldés
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#f43f5e]" />
-              {students.filter((e) => paymentFor(e.id).label === 'Non payé').length} non payés
+              {filtered.filter((e) => paymentFor(e.id).label === 'Non payé').length} non payés
             </span>
           </div>
         </div>

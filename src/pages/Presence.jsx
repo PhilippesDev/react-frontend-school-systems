@@ -7,6 +7,7 @@ import {
 import { useSchoolData } from '../hooks/useSchoolData';
 import { createOne, deleteOne } from '../lib/api';
 import { presenceToRecords, mapPresenceToApi } from '../lib/schoolJoins';
+import { elevePhotoUrl } from '../lib/elevePhoto';
 
 
 const CLASSES_FALLBACK = [
@@ -37,10 +38,12 @@ const MiniAvatar = ({ eleve, size = 'sm' }) => {
     lg: 'w-16 h-16 text-xl font-bold',
   }[size];
 
-  if (!err && eleve.photo) {
+  const photoUrl = elevePhotoUrl(eleve.photo);
+
+  if (!err && photoUrl) {
     return (
       <img
-        src={eleve.photo} alt=""
+        src={photoUrl} alt=""
         onError={() => setErr(true)}
         className={`${cls} rounded-full object-cover ring-2 ring-[#222233] shrink-0`}
       />

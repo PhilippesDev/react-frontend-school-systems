@@ -90,6 +90,7 @@ export function useSchoolData({ keys = CORE_KEYS, anneeId: anneeIdProp } = {}) {
       classes: raw.classe ?? [],
       options: raw.option ?? [],
       anneeId,
+      annees: raw.anneeScolaire ?? [],
     });
   }, [raw, anneeId]);
 

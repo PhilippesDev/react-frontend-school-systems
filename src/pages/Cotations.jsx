@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { useSchoolData } from '../hooks/useSchoolData';
+import { elevePhotoUrl } from '../lib/elevePhoto';
 import { ETABLISSEMENT } from '../lib/schoolConfig';
 import {
   fullName, getActiveAnnee, getClasseByNom, getElevesByClasse,
@@ -63,9 +64,11 @@ const Avatar = ({ eleve, size = 'md' }) => {
   const [err, setErr] = useState(false);
   const cls = { sm: 'w-8 h-8 text-[10px]', md: 'w-10 h-10 text-sm', lg: 'w-16 h-16 text-xl' }[size];
 
-  if (!err && eleve.photo) {
+  const photoUrl = elevePhotoUrl(eleve.photo);
+
+  if (!err && photoUrl) {
     return (
-      <img src={eleve.photo} alt="" onError={() => setErr(true)}
+      <img src={photoUrl} alt="" onError={() => setErr(true)}
         className={`${cls} rounded-full object-cover ring-2 ring-[#222233] shrink-0`} />
     );
   }

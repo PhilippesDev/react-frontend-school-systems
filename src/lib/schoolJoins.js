@@ -47,9 +47,22 @@ export function mapAnneeForUi(annee, index = 0) {
   };
 }
 
-export function getInscriptionForEleve(inscriptions, eleveId, anneeId) {
+/** Date d'inscription (l'API expose parfois `dateInsciption`). */
+export function inscriptionDate(ins) {
+  return ins?.dateInscription ?? ins?.dateInsciption ?? null;
+}
+
+function inscriptionMatchesAnnee(ins, anneeId, annees = []) {
+  if (!anneeId) return true;
+  if (ins.anneeScolaireId != null) return ins.anneeScolaireId === anneeId;
+  const annee = annees.find((a) => a.id === anneeId);
+  if (annee && ins.anneeScolaire) return ins.anneeScolaire === annee.designation;
+  return ins.anneeScolaireId == null && !ins.anneeScolaire;
+}
+
+export function getInscriptionForEleve(inscriptions, eleveId, anneeId, annees = []) {
   return inscriptions.find(
-    (i) => i.eleveId === eleveId && (!anneeId || i.anneeScolaireId === anneeId),
+    (i) => i.eleveId === eleveId && inscriptionMatchesAnnee(i, anneeId, annees),
   );
 }
 
@@ -59,22 +72,35 @@ export function enrichEleves({
   classes,
   options,
   anneeId,
+  annees = [],
 }) {
   const clsMap = Object.fromEntries(classes.map((c) => [c.id, c]));
   const optMap = Object.fromEntries(options.map((o) => [o.id, o]));
 
   return eleves.map((eleve) => {
-    const ins = getInscriptionForEleve(inscriptions, eleve.id, anneeId);
-    const cls = ins ? clsMap[ins.classeId] : null;
-    const opt = cls ? optMap[cls.optionId] : null;
+    const ins = getInscriptionForEleve(inscriptions, eleve.id, anneeId, annees);
+    const cls = ins?.classeId != null
+      ? clsMap[ins.classeId]
+      : ins?.classe
+        ? classes.find((c) => classeNom(c) === ins.classe || c.designation === ins.classe)
+        : null;
+    const opt = ins?.option
+      ? { designation: ins.option }
+      : cls
+        ? optMap[cls.optionId]
+        : null;
+    const anneeFromLabel = ins?.anneeScolaire
+      ? annees.find((a) => a.designation === ins.anneeScolaire)
+      : null;
+
     return {
       ...eleve,
       inscriptionId: ins?.id ?? null,
-      classeId: ins?.classeId ?? null,
-      anneeScolaireId: ins?.anneeScolaireId ?? null,
-      dateInscription: ins?.dateInscription ?? null,
-      classe: cls ? classeNom(cls) : '—',
-      option: opt ? optionNom(opt) : '—',
+      classeId: ins?.classeId ?? cls?.id ?? null,
+      anneeScolaireId: ins?.anneeScolaireId ?? anneeFromLabel?.id ?? null,
+      dateInscription: inscriptionDate(ins),
+      classe: ins?.classe ?? (cls ? classeNom(cls) : '-'),
+      option: ins?.option ?? (opt ? optionNom(opt) : '-'),
     };
   });
 }
@@ -158,14 +184,24 @@ export function mapPaiementForUi(paiement, inscriptions, fraisConcerner, frais, 
   };
 }
 
-export function computePaymentProgress(eleveId, inscriptions, fraisConcerner, paiements, anneeId) {
-  const ins = inscriptions.find(
-    (i) => i.eleveId === eleveId && (!anneeId || i.anneeScolaireId === anneeId),
-  );
+export function computePaymentProgress(eleveId, inscriptions, fraisConcerner, paiements, anneeId, annees = [], classes = []) {
+  const ins = getInscriptionForEleve(inscriptions, eleveId, anneeId, annees);
   if (!ins) return 0;
 
+  const classeId = ins.classeId ?? (
+    ins.classe
+      ? classes.find((c) => classeNom(c) === ins.classe || c.designation === ins.classe)?.id
+      : null
+  );
+  const anneeScolaireId = ins.anneeScolaireId ?? (
+    ins.anneeScolaire
+      ? annees.find((a) => a.designation === ins.anneeScolaire)?.id
+      : null
+  );
+  if (!classeId || !anneeScolaireId) return 0;
+
   const due = fraisConcerner
-    .filter((f) => f.classeId === ins.classeId && f.anneeScolaireId === ins.anneeScolaireId)
+    .filter((f) => f.classeId === classeId && f.anneeScolaireId === anneeScolaireId)
     .reduce((sum, f) => sum + (f.montant ?? 0), 0);
 
   if (due <= 0) return 100;
