@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, useLocation } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { AnneeScolaireProvider } from '@/context/AnneeScolaireContext'
 import './index.css'
 import App from './App.jsx'
 import Sidebar from './components/Sidebar'
@@ -23,9 +24,11 @@ function AppLayout() {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <TooltipProvider>
-        <AppLayout />
-      </TooltipProvider>
+      <AnneeScolaireProvider>
+        <TooltipProvider>
+          <AppLayout />
+        </TooltipProvider>
+      </AnneeScolaireProvider>
     </BrowserRouter>
   </StrictMode>,
 )

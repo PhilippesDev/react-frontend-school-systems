@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { 
   Search, 
   Calendar, 
@@ -18,6 +18,7 @@ import {
 import Timeline from '@/components/timeline';
 import Graphiques from '@/components/Graphiques';
 import { useSchoolData } from '@/hooks/useSchoolData';
+import { useAnneeScolaire } from '@/context/AnneeScolaireContext';
 import { computePaymentProgress } from '@/lib/schoolJoins';
 
 export default function Dashboard() {
@@ -29,11 +30,15 @@ export default function Dashboard() {
     inscriptions,
     fraisConcerner,
     paiements,
-    anneeId,
     loading,
   } = useSchoolData();
 
-  const [selectedYear, setSelectedYear] = useState(null);
+  const { anneeId, setAnneeId } = useAnneeScolaire();
+
+  const selectedYear = useMemo(
+    () => annees.find((a) => a.id === anneeId) ?? null,
+    [annees, anneeId],
+  );
 
   const statsData = useMemo(() => {
     const totalPaid = paiements.reduce((s, p) => s + (p.montant ?? 0), 0);
@@ -121,7 +126,7 @@ export default function Dashboard() {
     <Timeline
       schoolYears={annees}
       selectedYear={selectedYear}
-      onYearChange={setSelectedYear}
+      onYearChange={(year) => setAnneeId(year.id)}
     />
 
       

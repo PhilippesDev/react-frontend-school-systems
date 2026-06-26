@@ -14,9 +14,14 @@ import {
   BookOpen,
   Users,
 } from 'lucide-react';
+import { useSchoolData } from '../hooks/useSchoolData';
+import { useAnneeScolaire } from '../context/AnneeScolaireContext';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { anneeId } = useAnneeScolaire();
+  const { annees } = useSchoolData({ keys: ['anneeScolaire'] });
+  const selectedAnnee = annees.find((a) => a.id === anneeId);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -89,6 +94,30 @@ const Sidebar = () => {
             );
           })}
         </nav>
+
+        {!isCollapsed && selectedAnnee && (
+          <div className="mx-3 mt-4 px-4 py-3 rounded-xl bg-[#141420] border border-[#1f1f2e]">
+            <div className="flex items-center gap-2 mb-1">
+              <Calendar size={14} className="text-green-400 shrink-0" />
+              <span className="text-[10px] text-[#787890] uppercase tracking-wider font-semibold">Année scolaire</span>
+            </div>
+            <p className="text-white text-sm font-semibold truncate" style={{ color: selectedAnnee.color }}>
+              {selectedAnnee.label ?? selectedAnnee.designation}
+            </p>
+          </div>
+        )}
+
+        {isCollapsed && selectedAnnee && (
+          <div
+            className="mx-auto mt-4 w-10 h-10 rounded-xl bg-[#141420] border border-[#1f1f2e] flex items-center justify-center group relative"
+            title={selectedAnnee.label ?? selectedAnnee.designation}
+          >
+            <Calendar size={16} className="text-green-400" />
+            <div className="absolute left-24 bg-[#1e1e2f] text-white text-xs px-3 py-2 rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap border border-[#2f2f45] z-50">
+              {selectedAnnee.label ?? selectedAnnee.designation}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="px-3 mb-6 space-y-2">

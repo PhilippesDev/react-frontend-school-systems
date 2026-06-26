@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAnneeScolaire } from '../context/AnneeScolaireContext';
 import { fetchMany } from '../lib/api';
 import {
   enrichEleves,
@@ -36,6 +37,7 @@ const CORE_KEYS = [
  * Charge les données scolaires depuis l'API et expose des vues enrichies pour l'UI.
  */
 export function useSchoolData({ keys = CORE_KEYS, anneeId: anneeIdProp } = {}) {
+  const { anneeId: globalAnneeId } = useAnneeScolaire();
   const [raw, setRaw] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -63,7 +65,7 @@ export function useSchoolData({ keys = CORE_KEYS, anneeId: anneeIdProp } = {}) {
     [raw],
   );
 
-  const anneeId = anneeIdProp ?? activeAnnee?.id ?? null;
+  const anneeId = anneeIdProp ?? globalAnneeId ?? activeAnnee?.id ?? null;
 
   const classesUi = useMemo(
     () => (raw?.classe ?? []).map((c) => mapClasseForUi(c, raw?.option ?? [])),

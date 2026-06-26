@@ -5,6 +5,7 @@ import {
   Layers, Tag, Banknote, ArrowLeft, ArrowRight, CalendarDays
 } from 'lucide-react';
 import { useSchoolData } from '../hooks/useSchoolData';
+import { useAnneeScolaire } from '../context/AnneeScolaireContext';
 import { createOne, updateOne, deleteOne } from '../lib/api';
 
 const MODES_PAIEMENT = ['Espèces', 'Mobile Money', 'Carte bancaire', 'Virement', 'Chèque'];
@@ -114,8 +115,10 @@ export default function Paiements() {
     loading,
     error,
     reload,
-    anneeId,
   } = useSchoolData();
+
+  const { anneeId, setAnneeId } = useAnneeScolaire();
+  const selectedAnnee = anneeId ?? 0;
 
   const CLASSES = useMemo(() => classes.map((c) => c.nom), [classes]);
   const ANNEES_SCOLAIRES = useMemo(
@@ -131,7 +134,6 @@ export default function Paiements() {
   );
 
   const [activePart, setActivePart] = useState('cuisine');
-  const [selectedAnnee, setSelectedAnnee] = useState(anneeId ?? 0);
   const [searchCuisine, setSearchCuisine] = useState('');
   const [searchPaiement, setSearchPaiement] = useState('');
   const [filterCategorie, setFilterCategorie] = useState('Toutes');
@@ -490,7 +492,7 @@ export default function Paiements() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <FormSelect label="" value={selectedAnnee} onChange={(e) => setSelectedAnnee(parseInt(e.target.value))}
+                <FormSelect label="" value={selectedAnnee} onChange={(e) => setAnneeId(parseInt(e.target.value))}
                   options={ANNEES_SCOLAIRES.map((a) => ({ value: a.id, label: a.label }))} />
                 <button onClick={() => setModalAffectAdd(true)}
                        className="flex items-center gap-2.5 px-6 py-3.5 text-sm  transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]"

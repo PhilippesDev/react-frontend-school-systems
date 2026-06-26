@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useSchoolData } from '../hooks/useSchoolData';
 import { createOne, updateOne, deleteOne } from '../lib/api';
+import { createEleve, updateEleve } from '../lib/elevesService';
 import { computePaymentProgress, getPaymentInfo } from '../lib/schoolJoins';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -319,11 +320,11 @@ const DeleteModal = ({ eleve, onClose, onConfirm }) => {
 //  — Si initialEleve est fourni  step 2 directement
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ReInscriptionModal = ({ initialEleve, allStudents, onClose, onSave }) => {
+const ReInscriptionModal = ({ initialEleve, allStudents, anneesOptions, classesOptions, defaultAnnee, onClose, onSave }) => {
   const [step, setStep]   = useState(initialEleve ? 2 : 1);
   const [eleve, setEleve] = useState(initialEleve || null);
   const [search, setSrc]  = useState('');
-  const [form, setForm]   = useState({ classe: '', annee: '' });
+  const [form, setForm]   = useState({ classe: '', annee: defaultAnnee ?? '' });
   const [errors, setErrors] = useState({});
 
   const results = useMemo(() => {
@@ -441,7 +442,7 @@ const ReInscriptionModal = ({ initialEleve, allStudents, onClose, onSave }) => {
                 <SelectInput
                   value={form.annee}
                   onChange={(v) => setForm((f) => ({ ...f, annee: v }))}
-                  options={ANNEES}
+                  options={anneesOptions}
                   placeholder="Choisir une année..."
                 />
               </FormField>
@@ -450,7 +451,7 @@ const ReInscriptionModal = ({ initialEleve, allStudents, onClose, onSave }) => {
                 <SelectInput
                   value={form.classe}
                   onChange={(v) => setForm((f) => ({ ...f, classe: v }))}
-                  options={CLASSES}
+                  options={classesOptions}
                   placeholder="Choisir une classe..."
                 />
               </FormField>
@@ -489,7 +490,7 @@ const EMPTY_FORM = {
   dateNaissance:'', lieuNaissance:'',
   nomsPere:'', numPere:'',
   nomsMere:'', numMere:'',
-  classe:'', option:'', photo:'',
+  classe:'', option:'', photo:'', imageFile: null,
 };
 
 const STEPS = [
@@ -498,9 +499,9 @@ const STEPS = [
   { n:3, label:'Scolarité' },
 ];
 
-const InscriptionModal = ({ eleve, onClose, onSave }) => {
+const InscriptionModal = ({ eleve, classesOptions, optionsOptions, onClose, onSave }) => {
   const isEdit = !!eleve;
-  const [form, setForm]   = useState(isEdit ? { ...eleve } : { ...EMPTY_FORM });
+  const [form, setForm]   = useState(isEdit ? { ...eleve, imageFile: null } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
   const [step, setStep]   = useState(1);
 
@@ -628,7 +629,10 @@ const InscriptionModal = ({ eleve, onClose, onSave }) => {
                     Choisir une photo
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) set('photo')(URL.createObjectURL(f));
+                      if (f) {
+                        set('photo')(URL.createObjectURL(f));
+                        set('imageFile')(f);
+                      }
                     }} />
                   </label>
                 </div>
@@ -707,7 +711,7 @@ const InscriptionModal = ({ eleve, onClose, onSave }) => {
                 <SelectInput
                   value={form.classe}
                   onChange={set('classe')}
-                  options={CLASSES}
+                  options={classesOptions}
                   placeholder="Sélectionner une classe..."
                 />
               </FormField>
@@ -715,7 +719,7 @@ const InscriptionModal = ({ eleve, onClose, onSave }) => {
                 <SelectInput
                   value={form.option}
                   onChange={set('option')}
-                  options={OPTIONS}
+                  options={optionsOptions}
                   placeholder="Sélectionner une option..."
                 />
               </FormField>
@@ -929,12 +933,13 @@ export default function Eleves() {
       numPere: eleveFields.numPere ?? '',
       numMere: eleveFields.numMere ?? '',
       photo: eleveFields.photo ?? '',
+      imageFile: eleveFields.imageFile ?? null,
     };
     try {
       if (data.id && students.some((e) => e.id === data.id)) {
-        await updateOne('eleve', data.id, body);
+        await updateEleve(data.id, body);
       } else {
-        const created = await createOne('eleve', body);
+        const created = await createEleve(body);
         const cls = classesList.find((c) => c.nom === classe);
         if (cls && anneeId) {
           await createOne('inscription', {
@@ -1311,6 +1316,8 @@ export default function Eleves() {
       {editModal && (
         <InscriptionModal
           eleve={editModal === 'new' ? null : editModal}
+          classesOptions={CLASSES}
+          optionsOptions={OPTIONS}
           onClose={() => setEditModal(null)}
           onSave={handleSave}
         />
@@ -1328,6 +1335,9 @@ export default function Eleves() {
         <ReInscriptionModal
           initialEleve={reinscModal === 'global' ? null : reinscModal}
           allStudents={students}
+          anneesOptions={ANNEES}
+          classesOptions={CLASSES}
+          defaultAnnee={annees.find((a) => a.id === anneeId)?.designation ?? ''}
           onClose={() => setReinscModal(null)}
           onSave={handleReinscription}
         />
